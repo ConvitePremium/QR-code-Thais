@@ -18,3 +18,9 @@ FUNÇÕES:
 
 IMPORTANTE SOBRE INSTAGRAM:
 O navegador não escolhe o Instagram automaticamente. No celular, o botão "Compartilhar / Instagram" abre o compartilhamento nativo e o usuário escolhe o Instagram se ele estiver disponível no aparelho. Em navegadores sem suporte, use "Salvar imagem".
+
+TELA PRINCIPAL COM 1 BOTÃO
+- Troque assets/tela-inicial.png pela sua arte 9:16 já com o botão desenhado.
+- Abra index.html?editor=1 para posicionar/redimensionar a área clicável sobre o botão.
+- Baixe o config.js atualizado e substitua o antigo.
+- O clique leva para foto.html.
