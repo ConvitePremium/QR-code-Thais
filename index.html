@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#030918">
+  <title>Moldura para Instagram</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .editor-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #050a14;
+      border: 1px solid rgba(226,184,99,.4);
+      touch-action: pan-y;
+      box-shadow: 0 12px 35px rgba(0,0,0,.35);
+    }
+    canvas { width:100%; height:100%; display:block; }
+    .empty {
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      padding:24px;
+      text-align:center;
+      color:#d9d4c6;
+      pointer-events:none;
+    }
+    .file-label {
+      display:block;
+      text-align:center;
+      padding:14px 16px;
+      border-radius:16px;
+      border:1px solid #ffd986;
+      background:linear-gradient(180deg,#ffe9aa,#d6a94f);
+      color:#071329;
+      font-weight:700;
+      cursor:pointer;
+    }
+    #fileInput { display:none; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .share-note { margin: 0; text-align:center; }
+    @media (max-width: 430px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <h1>Moldura para Instagram</h1>
+      <p class="subtitle">Escolha uma foto, ajuste o enquadramento e salve ou compartilhe com a moldura da festa.</p>
+
+      <label class="file-label" for="fileInput">📷 Escolher foto</label>
+      <input id="fileInput" type="file" accept="image/*">
+
+      <div style="height:14px"></div>
+
+      <div id="editorWrap" class="editor-wrap">
+        <canvas id="canvas" width="1080" height="1920"></canvas>
+        <div id="empty" class="empty">Escolha uma foto para começar.</div>
+      </div>
+
+      <div class="gesture-tip">
+        <strong>Como ajustar sua foto:</strong><br>
+        No celular, use <strong>dois dedos</strong> sobre a foto: arraste para posicionar e faça o gesto de pinça para aumentar ou diminuir. Com <strong>um dedo</strong>, você pode rolar a página normalmente. A barra de Zoom abaixo também pode ser usada.
+      </div>
+
+      <div class="controls">
+        <div class="range-row">
+          <span>Zoom</span>
+          <input id="zoom" type="range" min="1" max="3.5" step="0.01" value="1">
+        </div>
+
+        <button id="centralizar" class="secondary" type="button">Centralizar foto</button>
+
+        <div class="row">
+          <button id="download" class="primary" type="button">Salvar imagem</button>
+          <button id="share" class="secondary" type="button">Compartilhar / Instagram</button>
+        </div>
+
+        <p id="shareNote" class="small share-note">No celular, “Compartilhar / Instagram” abre as opções de compartilhamento disponíveis no aparelho.</p>
+        <p class="small">A foto é processada no próprio aparelho e não é enviada para nenhum servidor.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("editorWrap");
+    const input = document.getElementById("fileInput");
+    const zoomEl = document.getElementById("zoom");
+    const empty = document.getElementById("empty");
+    const shareBtn = document.getElementById("share");
+    const shareNote = document.getElementById("shareNote");
+
+    const cfg = window.EVENTO_CONFIG || {};
+    const W = canvas.width, H = canvas.height;
+    const frame = new Image();
+    frame.src = (cfg.moldura && cfg.moldura.arquivo) || "assets/moldura.png";
+
+    let photo = null;
+    let baseScale = 1;
+    let zoom = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+
+    function resetPosition() {
+      if (!photo) return;
+      baseScale = Math.max(W / photo.naturalWidth, H / photo.naturalHeight);
+      zoom = 1;
+      zoomEl.value = 1;
+      offsetX = 0;
+      offsetY = 0;
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "#071020";
+      ctx.fillRect(0, 0, W, H);
+
+      if (photo) {
+        const s = baseScale * zoom;
+        const dw = photo.naturalWidth * s;
+        const dh = photo.naturalHeight * s;
+        ctx.drawImage(photo, (W - dw)/2 + offsetX, (H - dh)/2 + offsetY, dw, dh);
+      }
+
+      if (frame.complete && frame.naturalWidth) {
+        ctx.drawImage(frame, 0, 0, W, H);
+      }
+    }
+
+    frame.onload = draw;
+
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        photo = img;
+        empty.style.display = "none";
+        resetPosition();
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+
+    zoomEl.addEventListener("input", () => {
+      zoom = Number(zoomEl.value);
+      draw();
+    });
+
+    function pointerPos(e) {
+      const r = wrap.getBoundingClientRect();
+      return {
+        x: (e.clientX - r.left) * (W / r.width),
+        y: (e.clientY - r.top) * (H / r.height)
+      };
+    }
+
+    // Mouse/caneta: arraste normalmente. No toque, 1 dedo fica livre para rolar a página.
+    wrap.addEventListener("pointerdown", e => {
+      if (!photo || e.pointerType === "touch") return;
+      dragging = true;
+      wrap.setPointerCapture(e.pointerId);
+      const p = pointerPos(e);
+      lastX = p.x;
+      lastY = p.y;
+    });
+
+    wrap.addEventListener("pointermove", e => {
+      if (!dragging || !photo || e.pointerType === "touch") return;
+      const p = pointerPos(e);
+      offsetX += p.x - lastX;
+      offsetY += p.y - lastY;
+      lastX = p.x;
+      lastY = p.y;
+      draw();
+    });
+
+    wrap.addEventListener("pointerup", () => dragging = false);
+    wrap.addEventListener("pointercancel", () => dragging = false);
+
+    // Celular/tablet: 2 dedos movem a foto e fazem zoom; 1 dedo continua rolando a página.
+    let touchStartDistance = 0;
+    let touchStartZoom = 1;
+    let touchLastMid = null;
+
+    function touchPoint(t) {
+      const r = wrap.getBoundingClientRect();
+      return {
+        x: (t.clientX - r.left) * (W / r.width),
+        y: (t.clientY - r.top) * (H / r.height)
+      };
+    }
+
+    function distance(a, b) {
+      return Math.hypot(b.x - a.x, b.y - a.y);
+    }
+
+    function midpoint(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    wrap.addEventListener("touchstart", e => {
+      if (!photo || e.touches.length !== 2) return;
+      const a = touchPoint(e.touches[0]);
+      const b = touchPoint(e.touches[1]);
+      touchStartDistance = distance(a, b);
+      touchStartZoom = zoom;
+      touchLastMid = midpoint(a, b);
+      e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener("touchmove", e => {
+      if (!photo || e.touches.length !== 2 || !touchLastMid) return;
+      const a = touchPoint(e.touches[0]);
+      const b = touchPoint(e.touches[1]);
+      const currentDistance = distance(a, b);
+      const currentMid = midpoint(a, b);
+
+      if (touchStartDistance > 0) {
+        const nextZoom = Math.min(3.5, Math.max(1, touchStartZoom * (currentDistance / touchStartDistance)));
+        zoom = nextZoom;
+        zoomEl.value = nextZoom.toFixed(2);
+      }
+
+      offsetX += currentMid.x - touchLastMid.x;
+      offsetY += currentMid.y - touchLastMid.y;
+      touchLastMid = currentMid;
+      draw();
+      e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener("touchend", e => {
+      if (e.touches.length < 2) {
+        touchStartDistance = 0;
+        touchLastMid = null;
+      }
+    }, { passive: true });
+
+    wrap.addEventListener("touchcancel", () => {
+      touchStartDistance = 0;
+      touchLastMid = null;
+    }, { passive: true });
+
+    document.getElementById("centralizar").addEventListener("click", resetPosition);
+
+    function ensurePhoto() {
+      if (photo) return true;
+      alert("Escolha uma foto primeiro.");
+      return false;
+    }
+
+    function makeBlob() {
+      draw();
+      return new Promise(resolve => canvas.toBlob(resolve, "image/png", 1));
+    }
+
+    function nomeArquivo() {
+      return (cfg.moldura && cfg.moldura.nomeArquivo) || "foto-com-moldura.png";
+    }
+
+    document.getElementById("download").addEventListener("click", async () => {
+      if (!ensurePhoto()) return;
+      const blob = await makeBlob();
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = nomeArquivo();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    });
+
+    shareBtn.addEventListener("click", async () => {
+      if (!ensurePhoto()) return;
+      const blob = await makeBlob();
+      if (!blob) return;
+
+      const file = new File([blob], nomeArquivo(), { type: "image/png" });
+      const data = {
+        files: [file],
+        title: (cfg.nome ? `Moldura - ${cfg.nome}` : "Moldura para Instagram")
+      };
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share(data);
+        } catch (err) {
+          if (err && err.name !== "AbortError") {
+            alert("Não foi possível abrir o compartilhamento neste aparelho. Use o botão Salvar imagem.");
+          }
+        }
+      } else {
+        alert("O compartilhamento direto não é compatível com este navegador. Use Salvar imagem e publique pelo Instagram.");
+      }
+    });
+
+    if (!(navigator.share && navigator.canShare)) {
+      shareNote.textContent = "Seu navegador pode não permitir compartilhar a imagem diretamente. O botão Salvar imagem continuará funcionando normalmente.";
+    }
+
+    draw();
+  </script>
+</body>
+</html>

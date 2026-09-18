@@ -1,0 +1,20 @@
+ENGINE — MOLDURA PARA INSTAGRAM
+
+Esta versão não possui Quiz.
+Ao abrir index.html, a pessoa entra direto no editor da moldura.
+
+PARA TROCAR DE CLIENTE/EVENTO:
+1. Substitua assets/moldura.png pela nova moldura PNG transparente, preferencialmente em 9:16.
+2. Abra config.js e altere nome, idade e nomeArquivo.
+3. Publique normalmente no GitHub Pages.
+
+FUNÇÕES:
+- Escolher uma foto do aparelho.
+- Arrastar/reposicionar a foto.
+- Ajustar zoom.
+- Centralizar.
+- Salvar a composição final em PNG.
+- Compartilhar a imagem pelo menu nativo do aparelho, quando o navegador suportar Web Share API com arquivos.
+
+IMPORTANTE SOBRE INSTAGRAM:
+O navegador não escolhe o Instagram automaticamente. No celular, o botão "Compartilhar / Instagram" abre o compartilhamento nativo e o usuário escolhe o Instagram se ele estiver disponível no aparelho. Em navegadores sem suporte, use "Salvar imagem".
